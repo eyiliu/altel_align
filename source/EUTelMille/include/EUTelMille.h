@@ -9,14 +9,14 @@
 using IntVec = std::vector<int>;
 using FloatVec = std::vector<float>;
 using DoubleVec = std::vector<double>;
-using StringVec = std::vector<string>;
+using StringVec = std::vector<std::string>;
 
 class Mille;
 class EUTelMille{
 public:
   EUTelMille ();
 
-  void processEvent (LCEvent * evt);
+  void processEvent ();
   void end();
 
 

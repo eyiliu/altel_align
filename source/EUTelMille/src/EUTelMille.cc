@@ -1,6 +1,4 @@
 // from: Igor Rubinskiy, DESY <mailto:igorrubinsky@gmail.com>
-#include "mille/Mille.h"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -9,6 +7,13 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <cstring>
+
+
+#include "streamlog/streamlog.h"
+#include "pstream.h"
+#include "Mille.h"
+#include "EUTelMille.h"
 
 using namespace std;
 
@@ -46,9 +51,9 @@ EUTelMille::EUTelMille (){
  */
 void EUTelMille::FitTrack(unsigned int nPlanesFitter,
                           double xPosFitter[], double yPosFitter[], double zPosFitter[],
-                          double xResFitter[], double yResFitter[], double chi2Fit[2]
+                          double xResFitter[], double yResFitter[], double chi2Fit[2],
                           double residXFit[], double residYFit[], double angleFit[2]) {
-
+  
   int sizearray;
   sizearray = nPlanesFitter;
 
@@ -169,7 +174,7 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
 }
 
 
-void EUTelMille::processEvent (LCEvent * event) {
+void EUTelMille::processEvent () {
   // fill resolution arrays
   for (size_t help = 0; help < _nPlanes; help++) {
     _telescopeResolX[help] = _telescopeResolution;
@@ -177,7 +182,6 @@ void EUTelMille::processEvent (LCEvent * event) {
   }
 
   int _nTracks = 0;
-  int _nGoodTracks = 0;
 
   std::vector<IntVec > indexarray;
 
@@ -506,8 +510,6 @@ void EUTelMille::processEvent (LCEvent * event) {
       streamlog_out ( ERROR2 ) << _alignMode << " is not a valid mode. Please choose 1,2 or 3." << endl;
     }
 
-    _nGoodTracks++;
-
     // end local fit
     _mille->end();
 
@@ -516,7 +518,6 @@ void EUTelMille::processEvent (LCEvent * event) {
     // Fill histograms for individual tracks
     // -------------------------------------
 
-
     // clean up
     delete [] _zPosHere;
     delete [] _yPosHere;
@@ -524,12 +525,9 @@ void EUTelMille::processEvent (LCEvent * event) {
 
   } // end loop over all track candidates
 
-
   streamlog_out ( MESSAGE1 ) << "Finished fitting tracks in event " << _iEvt << endl;
-
   // count events
   ++_iEvt;
-  if ( isFirstEvent() ) _isFirstEvent = false;
 
 }
 
@@ -556,9 +554,13 @@ void EUTelMille::end() {
 
   // loop over all detector planes
   for(unsigned int iDetector = 0; iDetector < _nPlanes; iDetector++ ) {
-    meanX[iDetector] = residx_histo->mean(); // TODO, hist is removed
-    meanY[iDetector] = residy_histo->mean();
-    meanZ[iDetector] = residz_histo->mean();
+
+    // TODO: YI 
+    // meanX[iDetector] = residx_histo->mean(); // TODO, hist is removed
+    // meanY[iDetector] = residy_histo->mean();
+    // meanZ[iDetector] = residz_histo->mean();
+
+    
   } // end loop over all detector planes
 
   ofstream steerFile;
@@ -748,215 +750,209 @@ void EUTelMille::end() {
   // if running pede using the generated steering file
 
   // check if steering file exists
-  if (_generatePedeSteerfile == 1) {
 
-    std::string command = "pede " + _pedeSteerfileName;
+  std::string command = "pede " + _pedeSteerfileName;
 
-    streamlog_out ( MESSAGE5 ) << "Starting pede...: " << command.c_str() << endl;
+  streamlog_out ( MESSAGE5 ) << "Starting pede...: " << command.c_str() << endl;
 
-    bool encounteredError = false;
-    // run pede and create a streambuf that reads its stdout and stderr
-    redi::ipstream pede( command.c_str(), redi::pstreams::pstdout|redi::pstreams::pstderr );
+  bool encounteredError = false;
+  // run pede and create a streambuf that reads its stdout and stderr
+  redi::ipstream pede( command.c_str(), redi::pstreams::pstdout|redi::pstreams::pstderr );
 
-    if (!pede.is_open()) {
-      streamlog_out( ERROR5 ) << "Pede cannot be executed: command not found in the path" << endl;
-      encounteredError = true;
-    } else {
-      // output multiplexing: parse pede output in both stdout and stderr and echo messages accordingly
-      char buf[1024];
-      std::streamsize n;
-      std::stringstream pedeoutput; // store stdout to parse later
-      std::stringstream pedeerrors;
-      bool finished[2] = { false, false };
-      while (!finished[0] || !finished[1])
+  if (!pede.is_open()) {
+    streamlog_out( ERROR5 ) << "Pede cannot be executed: command not found in the path" << endl;
+    encounteredError = true;
+  } else {
+    // output multiplexing: parse pede output in both stdout and stderr and echo messages accordingly
+    char buf[1024];
+    std::streamsize n;
+    std::stringstream pedeoutput; // store stdout to parse later
+    std::stringstream pedeerrors;
+    bool finished[2] = { false, false };
+    while (!finished[0] || !finished[1])
+    {
+      if (!finished[0])
       {
-        if (!finished[0])
-        {
-          while ((n = pede.err().readsome(buf, sizeof(buf))) > 0){
-            streamlog_out( ERROR5 ).write(buf, n).flush();
-            string error (buf, n);
-            pedeerrors << error;
-            encounteredError = true;
-          }
-          if (pede.eof())
-          {
-            finished[0] = true;
-            if (!finished[1])
-              pede.clear();
-          }
-        }
-
-        if (!finished[1])
-        {
-          while ((n = pede.out().readsome(buf, sizeof(buf))) > 0){
-            streamlog_out( MESSAGE4 ).write(buf, n).flush();
-            string output (buf, n);
-            pedeoutput << output;
-          }
-          if (pede.eof())
-          {
-            finished[1] = true;
-            if (!finished[0])
-              pede.clear();
-          }
-        }
-      }
-
-      // pede does not return exit codes on some errors (in V03-04-00)
-      // check for some of those here by parsing the output
-      {
-        const char * pch = strstr(pedeoutput.str().data(),"Too many rejects");
-        if (pch){
-          streamlog_out ( ERROR5 ) << "Pede stopped due to the large number of rejects. " << endl;
+        while ((n = pede.err().readsome(buf, sizeof(buf))) > 0){
+          streamlog_out( ERROR5 ).write(buf, n).flush();
+          string error (buf, n);
+          pedeerrors << error;
           encounteredError = true;
         }
+        if (pede.eof())
+        {
+          finished[0] = true;
+          if (!finished[1])
+            pede.clear();
+        }
       }
-	
+
+      if (!finished[1])
       {
-        const char* pch0 = strstr(pedeoutput.str().data(),"Sum(Chi^2)/Sum(Ndf) = ");
-        if (pch0 != 0){
-          streamlog_out ( DEBUG5 ) << " Parsing pede output for final chi2/ndf result.. " << endl;
-          // search for the equal sign after which the result for chi2/ndf is stated within the next 80 chars 
-          // (with offset of 22 chars since pch points to beginning of "Sum(..." string just found)
-          char* pch = (char*)((memchr (pch0+22, '=', 180)));
-          if (pch!=NULL){
-            char str[16];
-            // now copy the numbers after the equal sign
-            strncpy ( str, pch+1, 15 );
-            str[15] = '\0';   /* null character manually added */
-            // monitor the chi2/ndf in CDash when running tests
-            CDashMeasurement meas_chi2ndf("chi2_ndf",atof(str));  cout << meas_chi2ndf; // output only if DO_TESTING is set
-            streamlog_out ( MESSAGE6 ) << "Final Sum(Chi^2)/Sum(Ndf) = " << str << endl;
-          }	    
+        while ((n = pede.out().readsome(buf, sizeof(buf))) > 0){
+          streamlog_out( MESSAGE4 ).write(buf, n).flush();
+          string output (buf, n);
+          pedeoutput << output;
+        }
+        if (pede.eof())
+        {
+          finished[1] = true;
+          if (!finished[0])
+            pede.clear();
         }
       }
-
-      // wait for the pede execution to finish
-      pede.close();
-
-      // reading back the millepede.res file and getting the
-      // results.
-      string millepedeResFileName = "millepede.res";
-
-      streamlog_out ( MESSAGE6 ) << "Reading back the " << millepedeResFileName << endl
-                                 << "Saving the alignment constant into " << _alignmentConstantLCIOFile << endl;
-
-      // open the millepede ASCII output file
-      ifstream millepede( millepedeResFileName.c_str() );
-
-
-      /*
-        if ( millepede.bad() || !millepede.is_open() )
-        {
-        streamlog_out ( ERROR4 ) << "Error opening the " << millepedeResFileName << endl
-        << "The alignment slcio file cannot be saved" << endl;
-        }
-        else 
-        {
-        vector<double > tokens;
-        stringstream tokenizer;
-        string line;
-
-        // get the first line and throw it away since it is a
-        // comment!
-        getline( millepede, line );
-
-        int counter = 0;
-
-        while ( ! millepede.eof() ) {
-
-        EUTelAlignmentConstant * constant = new EUTelAlignmentConstant;
-
-        bool goodLine = true;
-        unsigned int numpars = 0;
-        if(_alignMode != 3)
-        numpars = 3;
-        else
-        numpars = 6;
-
-        for ( unsigned int iParam = 0 ; iParam < numpars ; ++iParam ) 
-        {
-        getline( millepede, line );
-
-        if ( line.empty() ) {
-        goodLine = false;
-        continue;
-        }
-
-        tokens.clear();
-        tokenizer.clear();
-        tokenizer.str( line );
-
-        double buffer;
-        // // check that all parts of the line are non zero
-        while ( tokenizer >> buffer ) {
-        tokens.push_back( buffer ) ;
-        }
-
-        if ( ( tokens.size() == 3 ) || ( tokens.size() == 6 ) || (tokens.size() == 5) ) {
-        goodLine = true;
-        } else goodLine = false;
-
-        bool isFixed = ( tokens.size() == 3 );
-        if(_alignMode != 3)
-        {
-        if ( iParam == 0 ) {
-        constant->setXOffset( tokens[1] / 1000. );
-        if ( ! isFixed ) constant->setXOffsetError( tokens[4] / 1000. ) ;
-        }
-        if ( iParam == 1 ) {
-        constant->setYOffset( tokens[1] / 1000. ) ;
-        if ( ! isFixed ) constant->setYOffsetError( tokens[4] / 1000. ) ;
-        }
-        if ( iParam == 2 ) {
-        constant->setGamma( tokens[1]  ) ;
-        if ( ! isFixed ) constant->setGammaError( tokens[4] ) ;
-        }
-        }
-        else
-        {
-        if ( iParam == 0 ) {
-        constant->setXOffset( tokens[1] / 1000. );
-        if ( ! isFixed ) constant->setXOffsetError( tokens[4] / 1000. ) ;                    
-        }
-        if ( iParam == 1 ) {
-        constant->setYOffset( tokens[1] / 1000. ) ;
-        if ( ! isFixed ) constant->setYOffsetError( tokens[4] / 1000. ) ;
-        }
-        if ( iParam == 2 ) {
-        constant->setZOffset( tokens[1] / 1000. ) ;
-        if ( ! isFixed ) constant->setZOffsetError( tokens[4] / 1000. ) ;
-        }
-        if ( iParam == 3 ) {
-        constant->setAlpha( tokens[1]  ) ;
-        if ( ! isFixed ) constant->setAlphaError( tokens[4] ) ;
-        }
-        if ( iParam == 4 ) {
-        constant->setBeta( tokens[1]  ) ;
-        if ( ! isFixed ) constant->setBetaError( tokens[4] ) ;
-        }
-        if ( iParam == 5 ) {
-        constant->setGamma( tokens[1]  ) ;
-        if ( ! isFixed ) constant->setGammaError( tokens[4] ) ;
-        }
-
-        }
-        }
-
-        // right place to add the constant to the collection
-        if ( goodLine  ) {
-        constant->setSensorID( _orderedSensorID.at( counter ) );
-        ++ counter;
-        streamlog_out ( MESSAGE0 ) << (*constant) << endl;
-        }
-        else delete constant;
-        }
-        }
-      */
-      millepede.close();
     }
-  } else {
-    streamlog_out ( ERROR2 ) << "Unable to run pede. No steering file has been generated." << endl;
+
+    // pede does not return exit codes on some errors (in V03-04-00)
+    // check for some of those here by parsing the output
+    {
+      const char * pch = strstr(pedeoutput.str().data(),"Too many rejects");
+      if (pch){
+        streamlog_out ( ERROR5 ) << "Pede stopped due to the large number of rejects. " << endl;
+        encounteredError = true;
+      }
+    }
+	
+    {
+      const char* pch0 = strstr(pedeoutput.str().data(),"Sum(Chi^2)/Sum(Ndf) = ");
+      if (pch0 != 0){
+        streamlog_out ( DEBUG5 ) << " Parsing pede output for final chi2/ndf result.. " << endl;
+        // search for the equal sign after which the result for chi2/ndf is stated within the next 80 chars 
+        // (with offset of 22 chars since pch points to beginning of "Sum(..." string just found)
+        char* pch = (char*)((memchr (pch0+22, '=', 180)));
+        if (pch!=NULL){
+          char str[16];
+          // now copy the numbers after the equal sign
+          strncpy ( str, pch+1, 15 );
+          str[15] = '\0';   /* null character manually added */
+          // monitor the chi2/ndf in CDash when running tests
+          streamlog_out ( MESSAGE6 ) << "Final Sum(Chi^2)/Sum(Ndf) = " << str << endl;
+        }	    
+      }
+    }
+
+    // wait for the pede execution to finish
+    pede.close();
+
+    // reading back the millepede.res file and getting the
+    // results.
+    string millepedeResFileName = "millepede.res";
+
+    streamlog_out ( MESSAGE6 ) << "Reading back the " << millepedeResFileName << endl;
+
+    // open the millepede ASCII output file
+    ifstream millepede( millepedeResFileName.c_str() );
+
+
+    /*
+      if ( millepede.bad() || !millepede.is_open() )
+      {
+      streamlog_out ( ERROR4 ) << "Error opening the " << millepedeResFileName << endl
+      << "The alignment slcio file cannot be saved" << endl;
+      }
+      else 
+      {
+      vector<double > tokens;
+      stringstream tokenizer;
+      string line;
+
+      // get the first line and throw it away since it is a
+      // comment!
+      getline( millepede, line );
+
+      int counter = 0;
+
+      while ( ! millepede.eof() ) {
+
+      EUTelAlignmentConstant * constant = new EUTelAlignmentConstant;
+
+      bool goodLine = true;
+      unsigned int numpars = 0;
+      if(_alignMode != 3)
+      numpars = 3;
+      else
+      numpars = 6;
+
+      for ( unsigned int iParam = 0 ; iParam < numpars ; ++iParam ) 
+      {
+      getline( millepede, line );
+
+      if ( line.empty() ) {
+      goodLine = false;
+      continue;
+      }
+
+      tokens.clear();
+      tokenizer.clear();
+      tokenizer.str( line );
+
+      double buffer;
+      // // check that all parts of the line are non zero
+      while ( tokenizer >> buffer ) {
+      tokens.push_back( buffer ) ;
+      }
+
+      if ( ( tokens.size() == 3 ) || ( tokens.size() == 6 ) || (tokens.size() == 5) ) {
+      goodLine = true;
+      } else goodLine = false;
+
+      bool isFixed = ( tokens.size() == 3 );
+      if(_alignMode != 3)
+      {
+      if ( iParam == 0 ) {
+      constant->setXOffset( tokens[1] / 1000. );
+      if ( ! isFixed ) constant->setXOffsetError( tokens[4] / 1000. ) ;
+      }
+      if ( iParam == 1 ) {
+      constant->setYOffset( tokens[1] / 1000. ) ;
+      if ( ! isFixed ) constant->setYOffsetError( tokens[4] / 1000. ) ;
+      }
+      if ( iParam == 2 ) {
+      constant->setGamma( tokens[1]  ) ;
+      if ( ! isFixed ) constant->setGammaError( tokens[4] ) ;
+      }
+      }
+      else
+      {
+      if ( iParam == 0 ) {
+      constant->setXOffset( tokens[1] / 1000. );
+      if ( ! isFixed ) constant->setXOffsetError( tokens[4] / 1000. ) ;                    
+      }
+      if ( iParam == 1 ) {
+      constant->setYOffset( tokens[1] / 1000. ) ;
+      if ( ! isFixed ) constant->setYOffsetError( tokens[4] / 1000. ) ;
+      }
+      if ( iParam == 2 ) {
+      constant->setZOffset( tokens[1] / 1000. ) ;
+      if ( ! isFixed ) constant->setZOffsetError( tokens[4] / 1000. ) ;
+      }
+      if ( iParam == 3 ) {
+      constant->setAlpha( tokens[1]  ) ;
+      if ( ! isFixed ) constant->setAlphaError( tokens[4] ) ;
+      }
+      if ( iParam == 4 ) {
+      constant->setBeta( tokens[1]  ) ;
+      if ( ! isFixed ) constant->setBetaError( tokens[4] ) ;
+      }
+      if ( iParam == 5 ) {
+      constant->setGamma( tokens[1]  ) ;
+      if ( ! isFixed ) constant->setGammaError( tokens[4] ) ;
+      }
+
+      }
+      }
+
+      // right place to add the constant to the collection
+      if ( goodLine  ) {
+      constant->setSensorID( _orderedSensorID.at( counter ) );
+      ++ counter;
+      streamlog_out ( MESSAGE0 ) << (*constant) << endl;
+      }
+      else delete constant;
+      }
+      }
+    */
+    millepede.close();
   }
 
   streamlog_out ( MESSAGE2 ) << endl;
