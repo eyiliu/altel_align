@@ -16,6 +16,7 @@
 #include "pstream.h"
 #include "Mille.h"
 #include "EUTelMille.h"
+// #include "Mathematics/ApprOrthogonalLine3.h"
 
 using namespace std;
 
@@ -28,50 +29,71 @@ EUTelMille::EUTelMille(){
 EUTelMille::~EUTelMille(){
 };
 
+
+// EUTelMille::gteFit(unsigned int nPlanesFitter,
+//                    double xPosHit[], double yPosHit[], double zPosHit[],
+//                    double xResHit[], double yResHit[], double chi2Fit[2],
+//                    double residXFit[], double residYFit[], double angleFit[2]){
+//   gte::ApprOrthogonalLine3<double> linefit;
+//   std::vector<gte::Vector3<double>> hits;
+//   for(size_t n = 0; n< nPlanesFitter; n++){
+//     hits.emplace_back(xPosHit[n], yPosHit[n], zPosHit[n]);
+//   }
+//   linefit.Fit(hits);
+//   linefit.
+  
+  
+// }
+
+
+
+
 /*! Performs analytic straight line fit.
  *
- * Determines parameters of a straight line passing through the 
+ * Determines parameters of a straight line passing through the
  * measurement points.
  *
  * @see http://www.desy.de/~blobel/eBuch.pdf page 162
  *
  */
-void EUTelMille::FitTrack(unsigned int nPlanesFitter,
-                          double xPosFitter[], double yPosFitter[], double zPosFitter[],
-                          double xResFitter[], double yResFitter[], double chi2Fit[2],
-                          double residXFit[], double residYFit[], double angleFit[2]) {
+void EUTelMille::FitTrack(unsigned int nMeasures,
+                          const std::vector<double>& xPosMeasure,
+                          const std::vector<double>& yPosMeasure,
+                          const std::vector<double>& zPosMeasure,
+                          const std::vector<double>& xResolMeasure,
+                          const std::vector<double>& yResolMeasure,
+                          double& xOriginLine,
+                          double& yOriginLine,
+                          double& xAngleLine,
+                          double& yAngleLine,
+                          double& xChisqLine,
+                          double& yChisqLine,
+                          std::vector<double>& xResidMeasure,
+                          std::vector<double>& yResidMeasure
+  ) {
+  unsigned int nPlanesFit = nMeasures;
+  const double * xPosFit = xPosMeasure.data();
+  const double * yPosFit = yPosMeasure.data();
+  const double * zPosFit = zPosMeasure.data();;
+  const double * xResFit = xResolMeasure.data();
+  const double * yResFit = yResolMeasure.data();
+  xResidMeasure.resize(nPlanesFit);
+  yResidMeasure.resize(nPlanesFit);
 
-  int sizearray;
-  sizearray = nPlanesFitter;
-
-  double * xPosFit = new double[sizearray];
-  double * yPosFit = new double[sizearray];
-  double * zPosFit = new double[sizearray];
-  double * xResFit = new double[sizearray];
-  double * yResFit = new double[sizearray];
-
-  int nPlanesFit = 0;
-
-  for (unsigned int n = 0; n < nPlanesFitter; n++) {
-
-
-    xPosFit[nPlanesFit] = xPosFitter[n];
-    yPosFit[nPlanesFit] = yPosFitter[n];
-    zPosFit[nPlanesFit] = zPosFitter[n];
-    xResFit[nPlanesFit] = xResFitter[n];
-    yResFit[nPlanesFit] = yResFitter[n];
-    nPlanesFit++;
-  }
-
-  int counter;
+  double *residXFit = xResidMeasure.data();
+  double *residYFit = xResidMeasure.data();
 
   float S1[2]   = {0,0};
   float Sx[2]   = {0,0};
   float Xbar[2] = {0,0};
 
-  float * Zbar_X = new float[nPlanesFit];
-  float * Zbar_Y = new float[nPlanesFit];
-  for (counter = 0; counter < nPlanesFit; counter++){
+  std::vector<float> Zbar_X_v(nPlanesFit);
+  std::vector<float> Zbar_Y_v(nPlanesFit);
+
+  float * Zbar_X = Zbar_X_v.data();
+  float * Zbar_Y = Zbar_Y_v.data();
+
+  for (unsigned int counter = 0; counter < nPlanesFit; counter++){
     Zbar_X[counter] = 0.;
     Zbar_Y[counter] = 0.;
   }
@@ -83,13 +105,13 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
   float A2[2]     = {0,0};
 
   // define S1
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     S1[0] = S1[0] + 1/pow(xResFit[counter],2);
     S1[1] = S1[1] + 1/pow(yResFit[counter],2);
   }
 
   // define Sx
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     Sx[0] = Sx[0] + zPosFit[counter]/pow(xResFit[counter],2);
     Sx[1] = Sx[1] + zPosFit[counter]/pow(yResFit[counter],2);
   }
@@ -99,13 +121,13 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
   Xbar[1]=Sx[1]/S1[1];
 
   // coordinate transformation !! -> bar
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     Zbar_X[counter] = zPosFit[counter]-Xbar[0];
     Zbar_Y[counter] = zPosFit[counter]-Xbar[1];
   }
 
   // define Sy
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     Sy[0] = Sy[0] + xPosFit[counter]/pow(xResFit[counter],2);
     Sy[1] = Sy[1] + yPosFit[counter]/pow(yResFit[counter],2);
   }
@@ -115,13 +137,13 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
   Ybar[1]=Sy[1]/S1[1];
 
   // define Sxybar
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     Sxybar[0] = Sxybar[0] + Zbar_X[counter] * xPosFit[counter]/pow(xResFit[counter],2);
     Sxybar[1] = Sxybar[1] + Zbar_Y[counter] * yPosFit[counter]/pow(yResFit[counter],2);
   }
 
   // define Sxxbar
-  for( counter = 0; counter < nPlanesFit; counter++ ){
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
     Sxxbar[0] = Sxxbar[0] + Zbar_X[counter] * Zbar_X[counter]/pow(xResFit[counter],2);
     Sxxbar[1] = Sxxbar[1] + Zbar_Y[counter] * Zbar_Y[counter]/pow(yResFit[counter],2);
   }
@@ -132,32 +154,25 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
 
   // Calculate chi sqaured
   // Chi^2 for X and Y coordinate for hits in all planes
-  for( counter = 0; counter < nPlanesFit; counter++ ){
-    chi2Fit[0] += pow(-zPosFit[counter]*A2[0]
-                      +xPosFit[counter]-Ybar[0]+Xbar[0]*A2[0],2)/pow(xResFit[counter],2);
-    chi2Fit[1] += pow(-zPosFit[counter]*A2[1]
+  for(unsigned int  counter = 0; counter < nPlanesFit; counter++ ){
+    xChisqLine += pow(  -zPosFit[counter]*A2[0] +  xPosFit[counter] - Ybar[0] + Xbar[0]*A2[0]  ,2) /
+      pow(  xResFit[counter]  ,2);
+
+    xChisqLine += pow(-zPosFit[counter]*A2[1]
                       +yPosFit[counter]-Ybar[1]+Xbar[1]*A2[1],2)/pow(yResFit[counter],2);
   }
 
-  for( counter = 0; counter < static_cast< int >(nPlanesFitter); counter++ ) {
-    residXFit[counter] = (Ybar[0]-Xbar[0]*A2[0]+zPosFitter[counter]*A2[0])-xPosFitter[counter];
-    residYFit[counter] = (Ybar[1]-Xbar[1]*A2[1]+zPosFitter[counter]*A2[1])-yPosFitter[counter];
+  for(unsigned int counter = 0; counter < nPlanesFit; counter++ ) {
+    residXFit[counter] = (Ybar[0]-Xbar[0]*A2[0]+zPosFit[counter]*A2[0])-xPosFit[counter];
+    residYFit[counter] = (Ybar[1]-Xbar[1]*A2[1]+zPosFit[counter]*A2[1])-yPosFit[counter];
   }
 
   // define angle
-  angleFit[0] = atan(A2[0]);
-  angleFit[1] = atan(A2[1]);
+  xAngleLine = atan(A2[0]);
+  yAngleLine = atan(A2[1]);
 
-  // clean up
-  delete [] zPosFit;
-  delete [] yPosFit;
-  delete [] xPosFit;
-  delete [] yResFit;
-  delete [] xResFit;
-
-  delete [] Zbar_X;
-  delete [] Zbar_Y;
-
+  xOriginLine = Ybar[0] - Xbar[0]*A2[0];
+  yOriginLine = Ybar[1] - Xbar[1]*A2[1];
 }
 
 void EUTelMille::setResolution(double resolX, double resolY){
@@ -207,7 +222,6 @@ void EUTelMille::setGeometry(const JsonValue& js) {
   }
 }
 
-
 void EUTelMille::startMilleBinary(const std::string& path){
   m_mille.reset(new Mille(path.c_str()));
   m_binPath=path;
@@ -232,7 +246,7 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
   std::vector<size_t> idHit(m_nPlanes,0);
 
   if(js.Size()!= m_nPlanes){
-    std::fprintf(stderr, "hits number is less than detector number \n");
+    std::fprintf(stderr, "hits number[%i] is less than detector number[%i] \n", js.Size(), m_nPlanes);
     throw;
   }
   for(const auto& js_hit : js.GetArray()){
@@ -248,22 +262,36 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
     idHit[detN]=id;
   }
 
-  std::vector<double> chisqTrack(2,0);
-  std::vector<double> angleTrack(2,0);
+
+  double xOriginTrack = 0;
+  double yOriginTrack = 0;
+  double xAngleTrack = 0;
+  double yAngleTrack = 0;
+  double xChisqTrack = 0;
+  double yChisqTrack = 0;
+
   std::vector<double> xResidHit(m_nPlanes,0);
   std::vector<double> yResidHit(m_nPlanes,0);
 
   // Calculate residuals
   FitTrack(m_nPlanes,
-           xPosHit.data(),
-           yPosHit.data(),
-           zPosHit.data(),
-           xResolHit.data(),
-           yResolHit.data(),
-           chisqTrack.data(),
-           xResidHit.data(),
-           yResidHit.data(),
-           angleTrack.data());
+           xPosHit,
+           yPosHit,
+           zPosHit,
+           xResolHit,
+           yResolHit,
+
+           xOriginTrack,
+           yOriginTrack,
+           xAngleTrack,
+           yAngleTrack,
+
+           xChisqTrack,
+           yChisqTrack,
+
+           xResidHit,
+           yResidHit
+    );
 
   const int nLC = 4; // number of local parameters
   const int nGL = m_nPlanes * 3; // number of global parameters
