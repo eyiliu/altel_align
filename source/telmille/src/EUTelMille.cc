@@ -19,7 +19,14 @@
 
 using namespace std;
 
+EUTelMille::EUTelMille(){
 
+
+}
+
+
+EUTelMille::~EUTelMille(){
+};
 
 /*! Performs analytic straight line fit.
  *
@@ -153,10 +160,16 @@ void EUTelMille::FitTrack(unsigned int nPlanesFitter,
 
 }
 
+void EUTelMille::setResolution(double resolX, double resolY){
+  m_xResolution = resolX;
+  m_yResolution = resolY;
+}
+
+
 void EUTelMille::setGeometry(const JsonValue& js) {
-    if(!js.HasMember("geometry")){
+  if(!js.HasMember("geometry")){
     std::fprintf(stderr, "unable to find \"geomerty\" key for detector geomerty from JS\n");
-    return;
+    throw;
   }
 
   const auto &js_geo = js["geometry"];
@@ -206,13 +219,15 @@ void EUTelMille::endMilleBinary(){
 }
 
 void EUTelMille::fillTrackXYRz(const JsonValue& js) {
+  double stdevFact = 0.09;
+
   std::vector<double> xPosHit(m_nPlanes,0);
   std::vector<double> yPosHit(m_nPlanes,0);
   std::vector<double> zPosHit(m_nPlanes,0);
 
   //TODO: set
-  std::vector<double> xResolHit(m_nPlanes, 0.02);
-  std::vector<double> yResolHit(m_nPlanes, 0.02);
+  std::vector<double> xResolHit(m_nPlanes, m_xResolution);
+  std::vector<double> yResolHit(m_nPlanes, m_yResolution);
 
   std::vector<size_t> idHit(m_nPlanes,0);
 
@@ -311,11 +326,16 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
   int counter = 0;
   // loop over all planes
   for (unsigned int n = 0; n < m_nPlanes; n++) {
-    steerFile << (counter * 3 + 1) << " " << m_xPosDet[n] << " 0.0" << endl;
-    steerFile << (counter * 3 + 2) << " " << m_yPosDet[n] << " 0.0" << endl;
-    steerFile << (counter * 3 + 3) << " " << m_gammaPosDet[n] << " 0.0" << endl;
+    for(auto &[id, detN]: m_indexDet ){
+      if(detN == n){
+        // std::cout<< "id = "<< id<< " detN= "<< detN<<std::endl;
+        steerFile << (counter * 3 + 1) << " " << m_xPosDet.at(id) << " 0.0" << endl;
+        steerFile << (counter * 3 + 2) << " " << m_yPosDet.at(id) << " 0.0" << endl;
+        steerFile << (counter * 3 + 3) << " " << m_gammaPosDet.at(id) << " 0.0" << endl;
+        break;
+      }
+    }
     counter++;
-
   } // end loop over all planes
 
   steerFile << endl;

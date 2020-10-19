@@ -23,3 +23,6 @@ install(TARGETS altel-telmille
   PUBLIC_HEADER DESTINATION include  COMPONENT devel
   RESOURCE      DESTINATION resource COMPONENT runtime
   )
+
+
+add_subdirectory(exe)
