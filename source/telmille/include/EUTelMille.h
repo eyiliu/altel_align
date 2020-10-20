@@ -27,18 +27,6 @@ public:
   void fillTrackXYRz(const JsonValue& js);
   void createPedeStreeringModeXYRz(const std::string& path);
 
-  // static void FitTrack(
-  //   unsigned int nPlanesFitter,
-  //   double xPosFitter[],
-  //   double yPosFitter[],
-  //   double zPosFitter[],
-  //   double xResFit[],
-  //   double yResFit[],
-  //   double chi2Fit[2],
-  //   double residXFit[],
-  //   double residYFit[],
-  //   double angleFit[2]
-  //   );
 
   static void FitTrack(unsigned int nMeasures,
                        const std::vector<double>& xPosMeasure,
@@ -55,17 +43,6 @@ public:
                        std::vector<double>& residXFit,
                        std::vector<double>& residYFit);
 
-
-  // static void FitTrack(unsigned int nPlanesFit,
-  //                      const std::vector<double>& xPosFitter,
-  //                      const std::vector<double>& yPosFitter,
-  //                      const std::vector<double>& zPosFitter,
-  //                      const std::vector<double>& xResolFitter,
-  //                      const std::vector<double>& yResolFitter,
-  //                      std::vector<double>& chi2Fit,
-  //                      std::vector<double>& residXFit,
-  //                      std::vector<double>& residYFit,
-  //                      std::vector<double>& angleFit);
 
 private:
   std::unique_ptr<Mille> m_mille;

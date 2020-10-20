@@ -255,6 +255,11 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
     double xPosDet = m_xPosDet.at(id);
     double yPosDet = m_yPosDet.at(id);
     double zPosDet = m_zPosDet.at(id);
+    double xRotDet = m_alphaPosDet.at(id);
+    double yRotDet = m_betaPosDet.at(id);
+    double zRotDet = m_gammaPosDet.at(id);
+
+    
 
     xPosHit[detN]=xPosDet+js_hit["x"].GetDouble();
     yPosHit[detN]=yPosDet+js_hit["y"].GetDouble();
@@ -293,8 +298,8 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
            yResidHit
     );
 
-  const int nLC = 4; // number of local parameters
-  const int nGL = m_nPlanes * 3; // number of global parameters
+  const int nLC = 4; // number of local parameters, x, y, xa, ya
+  const int nGL = m_nPlanes * 3; // number of global parameters, x, y, rz
 
   std::vector<float> derLC(nLC, 0);
   std::vector<float> derGL(nGL, 0);

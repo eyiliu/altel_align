@@ -21,6 +21,8 @@ Usage:
 example:
 
 ../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/jsondata/altel_Run069000.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_geo.json -maxE 100000 -hitResX 0.1 -hitResY 0.1
+../bin/TelMille_main  -hitFile /work/data/TB2006/alpide_200629033515.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_313_geo.json -maxE 1000000 -hitResX 0.014 -hitResY 0.014
+
 )";
 
 int main(int argc, char *argv[]) {
@@ -137,6 +139,8 @@ int main(int argc, char *argv[]) {
   telmille.setResolution(hitResX, hitResY);
   telmille.startMilleBinary(milleBinaryFile_path);
 
+  size_t nGeoLayers = jsd_geo["geometry"]["detectors"].Size();
+
   size_t n_datapack_select_opt = 20000;
   JsonFileDeserializer jsf(hitFile_path);
   JsonAllocator jsa;
@@ -174,7 +178,7 @@ int main(int argc, char *argv[]) {
     // JsonUtils::printJsonValue(js_track_filtered, false);
 
     // drop multiple hits events
-    if (js_track_filtered.Size() != 6) { // TODO
+    if (js_track_filtered.Size() != nGeoLayers) { // TODO
       std::cout<< "skipping event "<<nEvents <<std::endl;
       continue;
     }
