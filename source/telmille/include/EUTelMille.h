@@ -7,10 +7,16 @@
 #include <map>
 #include "myrapidjson.h"
 
+
 using IntVec = std::vector<int>;
 using FloatVec = std::vector<float>;
 using DoubleVec = std::vector<double>;
 using StringVec = std::vector<std::string>;
+
+
+namespace gbl{
+   class GblDetectorLayer;
+}
 
 class Mille;
 class EUTelMille{
@@ -26,7 +32,6 @@ public:
 
   void fillTrackXYRz(const JsonValue& js);
   void createPedeStreeringModeXYRz(const std::string& path);
-
 
   static void FitTrack(unsigned int nMeasures,
                        const std::vector<double>& xPosMeasure,
@@ -44,7 +49,14 @@ public:
                        std::vector<double>& residYFit);
 
 
+  static std::unique_ptr<gbl::GblDetectorLayer> CreateLayerSit(const std::string& aName, unsigned int layer,
+                                                               double xPos, double yPos,
+                                                               double zPos, double thickness,
+                                                               double uAngle, double uRes,
+                                                               double vAngle, double vRes);
+
 private:
+
   std::unique_ptr<Mille> m_mille;
   std::string m_binPath;
 
@@ -60,6 +72,9 @@ private:
   std::map<size_t, double> m_alphaPosDet;
   std::map<size_t, double> m_betaPosDet;
   std::map<size_t, double> m_gammaPosDet;
+
+  std::map<size_t, std::unique_ptr<gbl::GblDetectorLayer>> m_dets;
+
 };
 #endif
 

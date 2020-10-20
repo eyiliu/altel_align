@@ -1,4 +1,7 @@
-set(LIB_SRC src/EUTelMille.cc src/Mille.cc)
+find_package (Eigen3 REQUIRED NO_MODULE)
+
+set(LIB_SRC src/EUTelMille.cc src/Mille.cc src/exampleUtil.cpp)
+
 add_library(altel-telmille STATIC ${LIB_SRC})
 
 target_include_directories(altel-telmille
@@ -8,7 +11,7 @@ target_include_directories(altel-telmille
   )
 
 target_link_libraries(altel-telmille
-  PUBLIC streamlog
+  PUBLIC streamlog Eigen3::Eigen
   PRIVATE mycommon
   )
 

@@ -11,11 +11,15 @@
 #include <cstring>
 #include <cmath>
 
+#include <Eigen/Geometry>
 
 #include "streamlog/streamlog.h"
 #include "pstream.h"
 #include "Mille.h"
 #include "EUTelMille.h"
+#include "exampleUtil.h"
+
+
 // #include "Mathematics/ApprOrthogonalLine3.h"
 
 using namespace std;
@@ -44,6 +48,46 @@ EUTelMille::~EUTelMille(){
   
   
 // }
+
+
+
+/// Create a silicon layer with 2D measurement.
+/**
+ * Create silicon layer with 2D measurement (u,v) at fixed Z-position.
+ * The measurement directions in the XY plane can be orthogonal or non-orthogonal
+ * (but must be different).
+ *
+ * \param [in] aName      name
+ * \param [in] layer      layer ID
+ * \param [in] xPos       X-position (of center)
+ * \param [in] yPos       Y-position (of center)
+ * \param [in] zPos       Z-position (of center)
+ * \param [in] thickness  thickness / radiation_length
+ * \param [in] uAngle     angle of u-direction in XY plane
+ * \param [in] uRes       resolution in u-direction
+ * \param [in] vAngle     angle of v-direction in XY plane
+ * \param [in] vRes       resolution in v-direction
+ */
+std::unique_ptr<gbl::GblDetectorLayer> EUTelMille::CreateLayerSit(const std::string& aName, unsigned int layer,
+                                                                  double xPos, double yPos, double zPos, double thickness,
+                                                                  double uAngle, double uRes, double vAngle, double vRes) {
+  Eigen::Vector3d aCenter(xPos, yPos, zPos);
+  Eigen::Vector2d aResolution(uRes, vRes);
+  Eigen::Vector2d aPrecision(1. / (uRes * uRes), 1. / (vRes * vRes));
+  Eigen::Matrix3d measTrafo;
+
+  const double cosU = cos(uAngle / 180. * M_PI);
+  const double sinU = sin(uAngle / 180. * M_PI);
+
+  const double cosV = cos(vAngle / 180. * M_PI);
+  const double sinV = sin(vAngle / 180. * M_PI);
+
+  measTrafo << cosU, sinU, 0.,   cosV, sinV, 0.,     0., 0., 1.; // U,V,N
+  Eigen::Matrix3d alignTrafo;
+  alignTrafo << 1., 0., 0.,      0., 1., 0.,         0., 0., 1.; // X,Y,Z
+  return std::make_unique<gbl::GblDetectorLayer>(aName, layer, 2, thickness, aCenter, aResolution,
+                                                 aPrecision, measTrafo, alignTrafo);
+}
 
 
 
@@ -163,7 +207,7 @@ void EUTelMille::FitTrack(unsigned int nMeasures,
   }
 
   for(unsigned int counter = 0; counter < nPlanesFit; counter++ ) {
-    residXFit[counter] = (Ybar[0]-Xbar[0]*A2[0]+zPosFit[counter]*A2[0])-xPosFit[counter];
+    residXFit[counter] = (Ybar[0]-Xbar[0]*A2[0]+zPosFit[counter]*A2[0])-xPosFit[counter]; // sign reverse?
     residYFit[counter] = (Ybar[1]-Xbar[1]*A2[1]+zPosFit[counter]*A2[1])-yPosFit[counter];
   }
 
@@ -216,6 +260,11 @@ void EUTelMille::setGeometry(const JsonValue& js) {
         m_betaPosDet[id]=ry;
         m_gammaPosDet[id]=rz;
         m_indexDet[id] = n;
+        
+        m_dets[id]=CreateLayerSit("PIX"+std::to_string(id), id,
+                                  cx, cy, cz, 0.001,
+                                  rz, 0.02, rz+90., 0.02);
+
         n++;
       }
     }
@@ -259,11 +308,25 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
     double yRotDet = m_betaPosDet.at(id);
     double zRotDet = m_gammaPosDet.at(id);
 
-    
+    Eigen::AngleAxisd rotZ(zRotDet, Eigen::Vector3d::UnitZ());
+    Eigen::AngleAxisd rotY(yRotDet, Eigen::Vector3d::UnitY());
+    Eigen::AngleAxisd rotX(xRotDet, Eigen::Vector3d::UnitX());
+    Eigen::Affine3d trafoGlobalFromMeas(Eigen::Affine3d::Identity());
+    trafoGlobalFromMeas.rotate(rotX);
+    trafoGlobalFromMeas.rotate(rotY);
+    trafoGlobalFromMeas.rotate(rotZ);
+    trafoGlobalFromMeas.translation() =  Eigen::Vector3d(xPosDet, yPosDet, zPosDet);
 
-    xPosHit[detN]=xPosDet+js_hit["x"].GetDouble();
-    yPosHit[detN]=yPosDet+js_hit["y"].GetDouble();
-    zPosHit[detN]=zPosDet;
+    Eigen::Vector3d measPos(js_hit["x"].GetDouble(), js_hit["y"].GetDouble(), 0);
+    Eigen::Vector3d globalPos =  trafoGlobalFromMeas * measPos;
+
+    xPosHit[detN]=globalPos[0];
+    yPosHit[detN]=globalPos[1];
+    zPosHit[detN]=globalPos[2];
+
+    // xPosHit[detN]=xPosDet+js_hit["x"].GetDouble();
+    // yPosHit[detN]=yPosDet+js_hit["y"].GetDouble();
+    // zPosHit[detN]=zPosDet;
     idHit[detN]=id;
   }
 
@@ -308,11 +371,34 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
   // loop over all planes
   for (unsigned int n = 0; n < m_nPlanes; n++) {
+    unsigned int id=-1;
+    for(auto [the_id, the_n]: m_indexDet){
+      if(the_n == n){
+        id = the_id;
+        break;
+      }
+    }
+    if(id == -1){
+      std::cout<< "not find id by n number"<<std::endl;
+      throw;
+    }
+    Eigen::Vector3d posPredit( xPosHit[n]+xResidHit[n], yPosHit[n]+yResidHit[n], zPosHit[n]);// TODO residual sign
+    Eigen::Vector3d dirLine( tan(xAngleTrack), tan(yAngleTrack), 1);
+    
+    auto& det = m_dets.at(id);
+    Eigen::Matrix<double, 2, 6> fullDerGL = det->getRigidBodyDerLocal(posPredit, dirLine); // global
+// or global cordination?
+
+
     float residual;
     float sigma;
 
-    derGL[((n * 3) + 0)] = -1;
-    derGL[((n * 3) + 2)] = yPosHit[n];
+    // derGL[((n * 3) + 0)] = -1;
+    // derGL[((n * 3) + 2)] = yPosHit[n];
+    derGL[((n * 3) + 0)] = fullDerGL(0,0);
+    derGL[((n * 3) + 1)] = fullDerGL(0,1);
+    derGL[((n * 3) + 2)] = fullDerGL(0,5);
+
     derLC[0] = 1;
     derLC[2] = zPosHit[n];
     residual = xResidHit[n];
@@ -320,18 +406,25 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
     m_mille->mille(nLC,derLC.data(),nGL,derGL.data(),label.data(),residual,sigma);
 
     derGL[((n * 3) + 0)] = 0;
+    derGL[((n * 3) + 1)] = 0;
     derGL[((n * 3) + 2)] = 0;
     derLC[0] = 0;
     derLC[2] = 0;
 
-    derGL[((n * 3) + 1)] = -1;
-    derGL[((n * 3) + 2)] = -1 * xPosHit[n];
+    // derGL[((n * 3) + 1)] = -1;
+    // derGL[((n * 3) + 2)] = -1 * xPosHit[n];
+    derGL[((n * 3) + 0)] = fullDerGL(1,0);
+    derGL[((n * 3) + 1)] = fullDerGL(1,1);
+    derGL[((n * 3) + 2)] = fullDerGL(1,5);
+
+
     derLC[1] = 1;
     derLC[3] = zPosHit[n];
     residual = yResidHit[n];
     sigma    = yResolHit[n];
     m_mille->mille(nLC,derLC.data(),nGL,derGL.data(),label.data(),residual,sigma);
 
+    derGL[((n * 3) + 0)] = 0;
     derGL[((n * 3) + 1)] = 0;
     derGL[((n * 3) + 2)] = 0;
     derLC[1] = 0;
