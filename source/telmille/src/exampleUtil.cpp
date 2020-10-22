@@ -435,17 +435,19 @@ Matrix<double, 3, 6> GblDetectorLayer::getRigidBodyDerGlobal(
 			- (direction * ndir.transpose()) / (direction.transpose() * ndir);
 // dm/dg (measurement vs 6 rigid body parameters, global system)
 	Matrix<double, 3, 6> dmdg = Matrix<double, 3, 6>::Zero();
-	dmdg(0, 0) = 1.;
-	dmdg(0, 4) = -dist(2);
-	dmdg(0, 5) = dist(1);
-	dmdg(1, 1) = 1.;
-	dmdg(1, 3) = dist(2);
-	dmdg(1, 5) = -dist(0);
-	dmdg(2, 2) = 1.;
-	dmdg(2, 3) = -dist(1);
-	dmdg(2, 4) = dist(0);
+        dmdg<<
+          1., 0., 0.,  0.,     -dist(2), dist(1),
+          0., 1., 0.,  dist(2), 0.,     -dist(0),
+          0., 0., 1., -dist(1), dist(0), 0.;
+
+        // CONG
+        // dmdg<<
+        //   -1., 0., 0.,  0.,     -dist(2), dist(1),
+        //   0., -1., 0.,  dist(2), 0.,     -dist(0),
+        //   0., 0., -1., -dist(1), dist(0), 0.;
+
 // drl/dg (local residuals vs rigid body parameters)
-	return global2meas * drdm * dmdg;
+	return global2meas * drdm * dmdg; //  drlm/dg in world system
 }
 
 /// Get rigid body derivatives in local (alignment) frame (rotated in measurement plane).
@@ -474,13 +476,40 @@ Matrix<double, 2, 6> GblDetectorLayer::getRigidBodyDerLocal(
 	const double vPos = dist[1];
 	// wPos = 0 (in detector plane)
 	// drl/dg (local residuals (du,dv) vs rigid body parameters)
-	Matrix<double, 2, 6> drldg;
-	drldg << 1.0, 0.0, -uSlope, vPos * uSlope, -uPos * uSlope, vPos, 0.0, 1.0, -vSlope, vPos
-			* vSlope, -uPos * vSlope, -uPos;
-	// local (alignment) to measurement system
+	Matrix<double, 2, 6> drldg; // drla/dg
+	drldg << 1.0, 0.0, -uSlope, vPos * uSlope, -uPos * uSlope, vPos,
+                 0.0, 1.0, -vSlope, vPos * vSlope, -uPos * vSlope, -uPos;
+
+// local (alignment) to measurement system
 	Matrix3d local2meas = global2meas * global2align.transpose();
-	return local2meas.block<2, 2>(0, 0) * drldg;
+        //Note: block<2,2>, assuming in-plane rotation only
+	return local2meas.block<2, 2>(0, 0) * drldg; // drlm/dg in DetectorLayer-local-align system
 }
+
+Matrix<double, 2, 6> GblDetectorLayer::getRigidBodyDerLocal_mod(
+  Eigen::Vector3d& position, Eigen::Vector3d& direction) const {
+	// track direction in local system
+	Vector3d tLoc = global2align * direction;
+	// local slopes
+	const double uSlope = tLoc[0] / tLoc[2];
+	const double vSlope = tLoc[1] / tLoc[2];
+	// lever arms (for rotations)
+	Vector3d dist = global2align * (position - center);
+	const double uPos = dist[0];
+	const double vPos = dist[1];
+	// wPos = 0 (in detector plane)
+	// drl/dg (local residuals (du,dv) vs rigid body parameters)
+	Matrix<double, 2, 6> drldg; // drla/dg
+	drldg << -1.0, 0.0, uSlope, vPos * uSlope, -uPos * uSlope, vPos,
+                 0.0, -1.0, vSlope, vPos * vSlope, -uPos * vSlope, -uPos;
+
+
+// local (alignment) to measurement system
+	Matrix3d local2meas = global2meas * global2align.transpose();
+        //Note: block<2,2>, assuming in-plane rotation only
+	return local2meas.block<2, 2>(0, 0) * drldg; // drlm/dg in DetectorLayer-local-align system
+}
+
 
 /// Get transformation for rigid body derivatives from global to local (alignment) system.
 /**
@@ -494,7 +523,11 @@ Matrix<double, 6, 6> GblDetectorLayer::getTrafoGlobalToLocal(
 	// transformation global to local
 	Matrix<double, 6, 6> glo2loc = Matrix<double, 6, 6>::Zero();
 	Matrix3d leverArms;
-	leverArms << 0., offset[2], -offset[1], -offset[2], 0., offset[0], offset[1], -offset[0], 0.;
+	leverArms<<
+          0.,         offset[2], -offset[1],
+          -offset[2], 0.,         offset[0],
+          offset[1], -offset[0],  0.;
+
 	glo2loc.block<3, 3>(0, 0) = rotation;
 	glo2loc.block<3, 3>(0, 3) = -rotation * leverArms;
 	glo2loc.block<3, 3>(3, 3) = rotation;
@@ -513,7 +546,11 @@ Matrix<double, 6, 6> GblDetectorLayer::getTrafoLocalToGlobal(
 	// transformation local to global
 	Matrix<double, 6, 6> loc2glo = Matrix<double, 6, 6>::Zero();
 	Matrix3d leverArms;
-	leverArms << 0., offset[2], -offset[1], -offset[2], 0., offset[0], offset[1], -offset[0], 0.;
+	leverArms <<
+          0.,         offset[2], -offset[1],
+          -offset[2], 0.,         offset[0],
+          offset[1], -offset[0],  0.;
+
 	loc2glo.block<3, 3>(0, 0) = rotation.transpose();
 	loc2glo.block<3, 3>(0, 3) = leverArms * rotation.transpose();
 	loc2glo.block<3, 3>(3, 3) = rotation.transpose();

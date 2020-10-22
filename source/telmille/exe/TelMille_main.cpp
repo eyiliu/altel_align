@@ -1,4 +1,6 @@
 #include "EUTelMille.h"
+
+
 #include "getopt.h"
 
 #include <iostream>
@@ -84,7 +86,6 @@ int main(int argc, char *argv[]) {
     case 'n':
       maxTrackNumber = std::stoull(optarg);
       break;
-
       /////generic part below///////////
     case 0: /* getopt_long() set a variable, just keep going */
       break;
@@ -180,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     // drop multiple hits events
     if (js_track_filtered.Size() != nGeoLayers) { // TODO
-      std::cout<< "skipping event "<<nEvents <<std::endl;
+      // std::cout<< "skipping event "<<nEvents <<std::endl;
       continue;
     }
     std::vector<size_t> geo_ids;
@@ -195,7 +196,7 @@ int main(int argc, char *argv[]) {
       geo_ids.push_back(geo_id);
     }
     if (found_same_geo_id) {
-      std::cout<< "skipping muilt-tracks event "<<nEvents <<std::endl;
+      // std::cout<< "skipping muilt-tracks event "<<nEvents <<std::endl;
       // JsonUtils::printJsonValue(js_track_filtered, false);
       continue;
     }

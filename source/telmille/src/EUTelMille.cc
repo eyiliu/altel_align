@@ -125,7 +125,7 @@ void EUTelMille::FitTrack(unsigned int nMeasures,
   yResidMeasure.resize(nPlanesFit);
 
   double *residXFit = xResidMeasure.data();
-  double *residYFit = xResidMeasure.data();
+  double *residYFit = yResidMeasure.data();
 
   float S1[2]   = {0,0};
   float Sx[2]   = {0,0};
@@ -207,8 +207,8 @@ void EUTelMille::FitTrack(unsigned int nMeasures,
   }
 
   for(unsigned int counter = 0; counter < nPlanesFit; counter++ ) {
-    residXFit[counter] = (Ybar[0]-Xbar[0]*A2[0]+zPosFit[counter]*A2[0])-xPosFit[counter]; // sign reverse?
-    residYFit[counter] = (Ybar[1]-Xbar[1]*A2[1]+zPosFit[counter]*A2[1])-yPosFit[counter];
+    residXFit[counter] = xPosFit[counter] - (Ybar[0]-Xbar[0]*A2[0]+zPosFit[counter]*A2[0]); // sign reverse?
+    residYFit[counter] = yPosFit[counter] - (Ybar[1]-Xbar[1]*A2[1]+zPosFit[counter]*A2[1]);
   }
 
   // define angle
@@ -260,7 +260,6 @@ void EUTelMille::setGeometry(const JsonValue& js) {
         m_betaPosDet[id]=ry;
         m_gammaPosDet[id]=rz;
         m_indexDet[id] = n;
-        
         m_dets[id]=CreateLayerSit("PIX"+std::to_string(id), id,
                                   cx, cy, cz, 0.001,
                                   rz, 0.02, rz+90., 0.02);
@@ -366,8 +365,29 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
   std::vector<float> derLC(nLC, 0);
   std::vector<float> derGL(nGL, 0);
+
   std::vector<int> label(nGL, 0);
-  std::iota(std::begin(label), std::end(label), 1);
+
+  for (unsigned int n = 0; n < m_nPlanes; n++) {
+    unsigned int id=-1;
+    for(auto [the_id, the_n]: m_indexDet){
+      if(the_n == n){
+        id = the_id;
+        break;
+      }
+    }
+    if(id == -1){
+      std::cout<< "not find id by n number"<<std::endl;
+      throw;
+    }
+    auto it_label_layer_begin = std::begin(label);
+    std::advance(it_label_layer_begin, 3*n);
+    auto it_label_layer_end   = std::begin(label);
+    std::advance(it_label_layer_end, 3*(n+1));
+    std::iota(it_label_layer_begin, it_label_layer_end, id*10+1);
+  }
+
+  // std::iota(std::begin(label), std::end(label), 1);
 
   // loop over all planes
   for (unsigned int n = 0; n < m_nPlanes; n++) {
@@ -382,11 +402,11 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
       std::cout<< "not find id by n number"<<std::endl;
       throw;
     }
-    Eigen::Vector3d posPredit( xPosHit[n]+xResidHit[n], yPosHit[n]+yResidHit[n], zPosHit[n]);// TODO residual sign
+    Eigen::Vector3d posPredit( xPosHit[n]-xResidHit[n], yPosHit[n]-yResidHit[n], zPosHit[n]);
     Eigen::Vector3d dirLine( tan(xAngleTrack), tan(yAngleTrack), 1);
-    
+
     auto& det = m_dets.at(id);
-    Eigen::Matrix<double, 2, 6> fullDerGL = det->getRigidBodyDerLocal(posPredit, dirLine); // global
+    Eigen::Matrix<double, 2, 6> fullDerGL = det->getRigidBodyDerLocal_mod(posPredit, dirLine); // global
 // or global cordination?
 
 
@@ -395,9 +415,9 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
     // derGL[((n * 3) + 0)] = -1;
     // derGL[((n * 3) + 2)] = yPosHit[n];
-    derGL[((n * 3) + 0)] = fullDerGL(0,0);
-    derGL[((n * 3) + 1)] = fullDerGL(0,1);
-    derGL[((n * 3) + 2)] = fullDerGL(0,5);
+    derGL[((n * 3) + 0)] = fullDerGL(0,0); // 1
+    derGL[((n * 3) + 1)] = fullDerGL(0,1); // 0
+    derGL[((n * 3) + 2)] = fullDerGL(0,5); // y
 
     derLC[0] = 1;
     derLC[2] = zPosHit[n];
@@ -413,9 +433,9 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
     // derGL[((n * 3) + 1)] = -1;
     // derGL[((n * 3) + 2)] = -1 * xPosHit[n];
-    derGL[((n * 3) + 0)] = fullDerGL(1,0);
-    derGL[((n * 3) + 1)] = fullDerGL(1,1);
-    derGL[((n * 3) + 2)] = fullDerGL(1,5);
+    derGL[((n * 3) + 0)] = fullDerGL(1,0); // 0
+    derGL[((n * 3) + 1)] = fullDerGL(1,1); // 1
+    derGL[((n * 3) + 2)] = fullDerGL(1,5); // -x
 
 
     derLC[1] = 1;
@@ -455,9 +475,9 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
     for(auto &[id, detN]: m_indexDet ){
       if(detN == n){
         // std::cout<< "id = "<< id<< " detN= "<< detN<<std::endl;
-        steerFile << (counter * 3 + 1) << " " << m_xPosDet.at(id) << " 0.0" << endl;
-        steerFile << (counter * 3 + 2) << " " << m_yPosDet.at(id) << " 0.0" << endl;
-        steerFile << (counter * 3 + 3) << " " << m_gammaPosDet.at(id) << " 0.0" << endl;
+        steerFile << (id*10 + 1) << " " << m_xPosDet.at(id) << " 0.0" << endl;
+        steerFile << (id*10 + 2) << " " << m_yPosDet.at(id) << " 0.0" << endl;
+        steerFile << (id*10 + 3) << " " << m_gammaPosDet.at(id) << " 0.0" << endl;
         break;
       }
     }

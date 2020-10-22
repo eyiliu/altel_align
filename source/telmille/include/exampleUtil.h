@@ -124,6 +124,8 @@ public:
 			Eigen::Vector3d& direction) const;
 	Eigen::Matrix<double, 2, 6> getRigidBodyDerLocal(Eigen::Vector3d& position,
 			Eigen::Vector3d& direction) const;
+	Eigen::Matrix<double, 2, 6> getRigidBodyDerLocal_mod(Eigen::Vector3d& position,
+			Eigen::Vector3d& direction) const;
 	Eigen::Matrix<double, 6, 6> getTrafoGlobalToLocal(Eigen::Vector3d& offset,
 			Eigen::Matrix3d& rotation) const;
 	Eigen::Matrix<double, 6, 6> getTrafoLocalToGlobal(Eigen::Vector3d& offset,
