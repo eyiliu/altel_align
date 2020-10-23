@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-project(altel_align VERSION 1.0.0 LANGUAGES CXX)
+# project(altel_align VERSION 1.0.0 LANGUAGES CXX Fortran C)
+project(altel_align VERSION 1.0.0 LANGUAGES CXX Fortran C)
 
 message(STATUS "CMAKE_ROOT:                  ${CMAKE_ROOT}")
 message(STATUS "CMAKE_VERSION:               ${CMAKE_VERSION}")
