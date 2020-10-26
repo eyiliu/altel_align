@@ -132,6 +132,33 @@ int main(int argc, char *argv[]) {
     std::fprintf(stderr, "Geometry file <%s> does not contain any json objects.\n", geometryFile_path.c_str() );
     throw;
   }
+
+  std::map<size_t, Eigen::Affine3d> trafo_targets;
+  if(jsd_geo.HasMember("geometry")&&
+     jsd_geo["geometry"].HasMember("targets") &&
+     jsd_geo["geometry"]["targets"].IsArray()){
+    const auto &js_duts = jsd_geo["geometry"]["targets"];
+    for(const auto& js_dut : js_duts.GetArray()){
+      size_t id = js_dut["id"].GetUint();
+      double cx = js_dut["center"]["x"].GetDouble();
+      double cy = js_dut["center"]["y"].GetDouble();
+      double cz = js_dut["center"]["z"].GetDouble();
+      double rx = js_dut["rotation"]["x"].GetDouble();
+      double ry = js_dut["rotation"]["y"].GetDouble();
+      double rz = js_dut["rotation"]["z"].GetDouble();
+
+      Eigen::AngleAxisd rotZ(rz, Eigen::Vector3d::UnitZ());
+      Eigen::AngleAxisd rotY(ry, Eigen::Vector3d::UnitY());
+      Eigen::AngleAxisd rotX(rx, Eigen::Vector3d::UnitX());
+      Eigen::Affine3d trafo(Eigen::Affine3d::Identity());
+      trafo.rotate(rotX);
+      trafo.rotate(rotY);
+      trafo.rotate(rotZ);
+      trafo.translation() =  Eigen::Vector3d(cx, cy, cz);
+      trafo_targets[id]=trafo;
+    }
+  }
+
   if( !jsd_geo.HasMember("geometry") ||
       !jsd_geo["geometry"].HasMember("detectors") ||
       !jsd_geo["geometry"]["detectors"].IsArray()){
@@ -144,8 +171,6 @@ int main(int argc, char *argv[]) {
   for(const auto& js_det : js_dets.GetArray()){
     JsonUtils::printJsonValue(js_det, false);
   }
-
-  
 
   std::map<size_t, Eigen::Affine3d> trafo_dets;
   for(const auto& js_det : js_dets.GetArray()){
@@ -203,6 +228,32 @@ int main(int argc, char *argv[]) {
   auto brXFit = tree.Branch("xfit", &p_xPosFit);
   auto brYFit = tree.Branch("yfit", &p_yPosFit);
 
+
+
+  std::vector<size_t> idTarget;
+  std::vector<double> xMeasTarget;
+  std::vector<double> yMeasTarget;
+  std::vector<double> xFitMeasTarget;
+  std::vector<double> yFitMeasTarget;
+  std::vector<double> xResidMeasTarget;
+  std::vector<double> yResidMeasTarget;
+
+  std::vector<size_t>* p_idTarget = &idTarget;
+  std::vector<double>* p_xMeasTarget = &xMeasTarget;
+  std::vector<double>* p_yMeasTarget = &yMeasTarget;
+  std::vector<double>* p_xFitMeasTarget = &xFitMeasTarget;
+  std::vector<double>* p_yFitMeasTarget = &yFitMeasTarget;
+  std::vector<double>* p_xResidMeasTarget = &xResidMeasTarget;
+  std::vector<double>* p_yResidMeasTarget = &yResidMeasTarget;
+
+  auto brIdTarget = tree.Branch("idTarget", &p_idTarget);
+  auto brXMeasTarget = tree.Branch("xMeasTarget", &p_xMeasTarget);
+  auto brYMeasTarget = tree.Branch("yMeasTarget", &p_yMeasTarget);
+  auto brXFitMeasTarget = tree.Branch("xFitMeasTarget", &p_xFitMeasTarget);
+  auto brYFitMeasTarget = tree.Branch("yFitMeasTarget", &p_yFitMeasTarget);
+  auto brXResidMeasTarget = tree.Branch("xResidMeasTarget", &p_xResidMeasTarget);
+  auto brYResidMeasTarget = tree.Branch("yResidMeasTarget", &p_yResidMeasTarget);
+
   size_t nTracks = 0;
   size_t nEvents = 0;
   while (jsf) {
@@ -215,8 +266,16 @@ int main(int argc, char *argv[]) {
       break;
     }
     const auto &layers = evpack["layers"];
-    if (layers.Size() != trafo_dets.size()) {
-      std::fprintf(stdout, "something wrong, skip envent %i\n", nEvents);
+
+    bool isAllSingleHit = true;
+    for (const auto &layer : layers.GetArray()){
+      if(layer["hit"].Size() !=1){
+        isAllSingleHit = false;
+        break;
+      }
+    }
+    if(!isAllSingleHit){
+      std::fprintf(stdout, "isAllSingleHit false, skip envent %i\n", nEvents);
       nEvents++;
       continue;
     }
@@ -233,17 +292,21 @@ int main(int argc, char *argv[]) {
     xPosFit.clear();
     yPosFit.clear();
 
-    for (const auto &layer : layers.GetArray()) {
-      if(layer["hit"].Size() !=1){
-        continue;
-      }
-      size_t id = layer["ext"].GetUint();
-      for (const auto &hit : layer["hit"].GetArray()) {
+    for(const auto& [theId, theTrafo]: trafo_dets){
+      for (const auto &layer : layers.GetArray()){
+        size_t id = layer["ext"].GetUint();
+        if(id != theId){
+          continue;
+        }
+        if(layer["hit"].Size() !=1){
+          throw;
+        }
+        const auto &hit = layer["hit"][0];
         double x_hit = hit["pos"][0].GetDouble() - 0.02924 * 1024 / 2.0;
         double y_hit = hit["pos"][1].GetDouble() - 0.02688 * 512 / 2.0;
         Eigen::Vector3d measPos(x_hit, y_hit, 0);
-        Eigen::Vector3d globalPos =  trafo_dets.at(id) * measPos;
         idMeas.push_back(id);
+        Eigen::Vector3d globalPos =  theTrafo * measPos;
         xPosMeas.push_back(globalPos(0));
         yPosMeas.push_back(globalPos(1));
         zPosMeas.push_back(globalPos(2));
@@ -252,12 +315,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if(idMeas.size() != layers.Size()){
-      std::fprintf(stdout, "skip incompleted track in event %i\n", nEvents);
-      nEvents++;
-      continue;
-    }
-    //
+//
     double xOriLine;
     double yOriLine;
     double xAngleLine;
@@ -267,15 +325,57 @@ int main(int argc, char *argv[]) {
     FitTrack(idMeas.size(), xPosMeas, yPosMeas, zPosMeas, xResolMeas, yResolMeas,
              xOriLine, yOriLine, xAngleLine, yAngleLine, xChisqLine, yChisqLine,
              xResidFit, yResidFit);
-    nEvents++;
-    nTracks++;
 
     for(int i=0; i<idMeas.size(); i++){
       xPosFit.push_back(xPosMeas[i]-xResidFit[i]);
       yPosFit.push_back(yPosMeas[i]-yResidFit[i]);
     }
 
+    xMeasTarget.clear();
+    yMeasTarget.clear();
+    xFitMeasTarget.clear();
+    yFitMeasTarget.clear();
+    xResidMeasTarget.clear();
+    yResidMeasTarget.clear();
+
+    Eigen::Vector3d oriLine(xOriLine, yOriLine, 0.);
+    Eigen::Vector3d dirLine(tan(xAngleLine), tan(yAngleLine), 1);
+    dirLine.normalize();
+    Eigen::ParametrizedLine<double, 3> line(oriLine, dirLine);
+
+    for(const auto& [theId, theTrafo]: trafo_targets){
+      for (const auto &layer : layers.GetArray()){
+        size_t id = layer["ext"].GetUint();
+        if(id != theId){
+          continue;
+        }
+        if(layer["hit"].Size() != 1){
+          throw;
+        }
+        const auto &hit = layer["hit"][0];
+        double x_hit = hit["pos"][0].GetDouble() - 0.02924 * 1024 / 2.0;
+        double y_hit = hit["pos"][1].GetDouble() - 0.02688 * 512 / 2.0;
+        Eigen::Vector3d measPos(x_hit, y_hit, 0);
+        idTarget.push_back(id);
+        xMeasTarget.push_back(measPos(0));
+        yMeasTarget.push_back(measPos(1));
+
+        Eigen::Vector3d ori = theTrafo*Eigen::Vector3d(0., 0., 0.);
+        Eigen::Vector3d dir = theTrafo*Eigen::Vector3d(0., 0., 1.);
+        Eigen::Hyperplane<double, 3> targetPlane(dir, ori);
+        Eigen::Vector3d fitGlobal = line.intersectionPoint(targetPlane);
+        Eigen::Vector3d fitLocal = theTrafo.inverse() * fitGlobal;
+        xFitMeasTarget.push_back(fitLocal(0));
+        yFitMeasTarget.push_back(fitLocal(1));
+        Eigen::Vector3d residMeas = measPos - fitLocal;
+        xResidMeasTarget.push_back(residMeas(0));
+        yResidMeasTarget.push_back(residMeas(1));
+      }
+    }
+
     tree.Fill();
+    nEvents++;
+    nTracks++;
   }
 
   TFile tfile(rootFile_path.c_str(),"recreate");
@@ -283,8 +383,6 @@ int main(int argc, char *argv[]) {
   tfile.Close();
   return 0;
 }
-
-
 
 
 void FitTrack(unsigned int nMeasures,
