@@ -11,37 +11,6 @@ using std::size_t;
 
 
 int main(int argc, char** args){
-  // using namespace mpmod;
-  // using namespace mpdalc;
-  float andf;
-  float c2ndf;
-  float deltat;
-  float diff;
-  float err;
-  float gbu;
-  float gmati;
-  float rej;
-
-  int32_t i;
-  int32_t ii;
-  int32_t ix;
-  int32_t ixv;
-  int32_t iy;
-  int32_t k;
-  int32_t kfl;
-  int32_t lun;
-
-  int32_t minut;
-  int32_t nhour;
-
-  int32_t nmxy;
-  int32_t nrc;
-  int32_t nsecnd;
-  int32_t ntot;
-  int32_t ntsec;
-
-  int64_t rows;
-  int64_t cols;
 
   __mpmod_MOD_lunmon=0; // !     millepede monitoring file
   __mpmod_MOD_lunlog=8; // !     millepede.log file
@@ -54,8 +23,7 @@ int main(int argc, char** args){
   peend_(&error_code_n1,running_str.c_str(), running_str.size());
 
   // !     read command line and text files
-
-  //TODO: filetc has internal  CALL getarg(i,text)
+  //TODO: filetc has internal  CALL getarg(i,text) and open streering file
   filetc_();   // command line and steering file analysis
   filetx_();   // read text files
 
@@ -72,20 +40,21 @@ int main(int argc, char** args){
     __mpmod_MOD_ncache=25000000*__mpmod_MOD_mthrd;  // default cache size (100 MB per thread)
   }
 
-  rows=6;
-  cols=__mpmod_MOD_mthrdr;
+
+  int64_t rows = 6;
+  int64_t cols =__mpmod_MOD_mthrdr;
   preparereadbufferinfo_(&rows, &cols);
 
-  lun=7;
+  int32_t lunhis = 7;
   std::string hisfile_name("millepede.his");
-  mvopen_(&lun, hisfile_name.c_str(), hisfile_name.size());
-  hmplun_(&lun);// unit for histograms
-  gmplun_(&lun);//  unit for xy data
+  mvopen_(&lunhis, hisfile_name.c_str(), hisfile_name.size());
+  hmplun_(&lunhis);// unit for histograms
+  gmplun_(&lunhis);//  unit for xy data
 
-  int32_t debuglun = 1;
+  int32_t lundeb = 1;
   if(__mpmod_MOD_nrecpr != 0 || __mpmod_MOD_nrecp2 != 0){
     std::string debugfile_name("mpdebug.txt");
-    mvopen_(&debuglun, debugfile_name.c_str(), debugfile_name.size());
+    mvopen_(&lundeb, debugfile_name.c_str(), debugfile_name.size());
   }
 
   loop1_();
@@ -105,6 +74,7 @@ int main(int argc, char** args){
   std::string iter_str("Iteration");
   mstart_(iter_str.c_str(), iter_str.size());   // Solution module starting
   xloopn_(); // all methods;
+  //TODO: remove prtglo_ at the end of xloopn_ , millepede.res;
 
 
 /*
