@@ -129,13 +129,13 @@ int main(int argc, char *argv[]) {
         }
         found = true;
         if(index==1){
-          js_det["center"]["x"]=result;
+          js_det["center"]["x"]=result+js_det["center"]["x"].GetDouble();
         }
         else if(index==2){
-          js_det["center"]["y"]=result;
+          js_det["center"]["y"]=result+js_det["center"]["y"].GetDouble();
         }
         else if(index==3){
-          js_det["rotation"]["z"]=result;
+          js_det["rotation"]["z"]=result + js_det["rotation"]["z"].GetDouble();
         }
         else{
           std::cerr<< "something wrong, index is not found\n";

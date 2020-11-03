@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
       milleBinaryFile_path.empty()||
       pedeSteeringFile_path.empty()
     ) {
-    // std::fprintf(stderr, "%s\n", help_usage.c_str());
-    exit(0);
+    std::fprintf(stderr, "%s\n", help_usage.c_str());
+    std::exit(0);
   }
 
   std::fprintf(stdout, "\n");
