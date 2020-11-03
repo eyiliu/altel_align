@@ -86,7 +86,7 @@ L_FLAGS = -Wall -O3
 #
 USER_OBJ_PEDE = mpdef.o mpdalc.o mpmod.o mpbits.o mpqldec.o mptest1.o mptest2.o mille.o mpnum.o mptext.o mphistab.o \
 	minresDataModule.o minresModule.o minresqlpDataModule.o minresqlpBlasModule.o minresqlpModule.o \
-        randoms.o vertpr.o linesrch.o Dbandmatrix.o pede.o
+        randoms.o vertpr.o linesrch.o Dbandmatrix.o pede.o pede_main.o
 #
 # Chose flags/object files for C-binary support:
 #
@@ -140,6 +140,7 @@ mpmod.o:   mpdef.o
 mpnum.o:   mpdef.o
 mpqldec.o: mpdef.o mpdalc.o
 pede.o:    mpdef.o mpmod.o mpdalc.o mptest1.o mptest2.o mptext.o
+pede_main.o: pede.o
 # ##################################################################
 # END
 # ##################################################################

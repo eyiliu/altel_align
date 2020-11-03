@@ -27,23 +27,37 @@ set(PEDE_SRC
 add_library(objpede OBJECT ${PEDE_SRC})
 target_compile_options(objpede PRIVATE "-DREAD_C_FILES")  
 set_target_properties(objpede PROPERTIES COMPILE_FLAGS "-fautomatic -fno-backslash -cpp")
+
+add_library(objpede_fmain OBJECT pede_main.f90)
+target_compile_options(objpede_fmain PRIVATE "-DREAD_C_FILES")  
+set_target_properties(objpede_fmain PROPERTIES COMPILE_FLAGS "-fautomatic -fno-backslash -cpp")
+
 find_package(OpenMP)
 if(OpenMP_Fortran_FOUND)
   get_property(objpede_flags TARGET objpede PROPERTY COMPILE_FLAGS)
   set(objpede_flags "${objpede_flags} ${OpenMP_Fortran_FLAGS}")
   set_target_properties(objpede PROPERTIES COMPILE_FLAGS ${objpede_flags})
+  set_target_properties(objpede_fmain PROPERTIES COMPILE_FLAGS ${objpede_flags})
 endif()
+
 
 add_library(objreadc OBJECT readc.c)
 target_include_directories(objreadc PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_compile_options(objreadc PRIVATE "-Df2cFortran")
 
-add_executable(pede $<TARGET_OBJECTS:objpede> $<TARGET_OBJECTS:objreadc>)
+
+add_library(pede SHARED $<TARGET_OBJECTS:objpede> $<TARGET_OBJECTS:objreadc>)
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(pede OpenMP::OpenMP_Fortran)
 endif()
 
-install(TARGETS pede
+add_executable(pede_fmain $<TARGET_OBJECTS:objpede_fmain>)
+target_link_libraries(pede_fmain pede)
+
+add_executable(pede_cmain pede_main.cc)
+target_link_libraries(pede_cmain pede)
+
+install(TARGETS pede pede_fmain pede_cmain
   EXPORT ${PROJECT_NAME}Targets
   RUNTIME       DESTINATION bin      COMPONENT runtime
   LIBRARY       DESTINATION lib      COMPONENT runtime
