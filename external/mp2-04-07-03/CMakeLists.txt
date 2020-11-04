@@ -32,13 +32,13 @@ add_library(objpede_fmain OBJECT pede_main.f90)
 target_compile_options(objpede_fmain PRIVATE "-DREAD_C_FILES")  
 set_target_properties(objpede_fmain PROPERTIES COMPILE_FLAGS "-fautomatic -fno-backslash -cpp")
 
-find_package(OpenMP)
-if(OpenMP_Fortran_FOUND)
-  get_property(objpede_flags TARGET objpede PROPERTY COMPILE_FLAGS)
-  set(objpede_flags "${objpede_flags} ${OpenMP_Fortran_FLAGS}")
-  set_target_properties(objpede PROPERTIES COMPILE_FLAGS ${objpede_flags})
-  set_target_properties(objpede_fmain PROPERTIES COMPILE_FLAGS ${objpede_flags})
-endif()
+# find_package(OpenMP)
+# if(OpenMP_Fortran_FOUND)
+#   get_property(objpede_flags TARGET objpede PROPERTY COMPILE_FLAGS)
+#   set(objpede_flags "${objpede_flags} ${OpenMP_Fortran_FLAGS}")
+#   set_target_properties(objpede PROPERTIES COMPILE_FLAGS ${objpede_flags})
+#   set_target_properties(objpede_fmain PROPERTIES COMPILE_FLAGS ${objpede_flags})
+# endif()
 
 
 add_library(objreadc OBJECT readc.c)
@@ -47,9 +47,9 @@ target_compile_options(objreadc PRIVATE "-Df2cFortran")
 
 
 add_library(pede SHARED $<TARGET_OBJECTS:objpede> $<TARGET_OBJECTS:objreadc>)
-if(OpenMP_Fortran_FOUND)
-  target_link_libraries(pede OpenMP::OpenMP_Fortran)
-endif()
+# if(OpenMP_Fortran_FOUND)
+#   target_link_libraries(pede OpenMP::OpenMP_Fortran)
+# endif()
 
 add_executable(pede_fmain $<TARGET_OBJECTS:objpede_fmain>)
 target_link_libraries(pede_fmain pede)
