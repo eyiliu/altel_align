@@ -11,7 +11,7 @@ target_include_directories(altel-telmille
   )
 
 target_link_libraries(altel-telmille
-  PUBLIC streamlog Eigen3::Eigen
+  PUBLIC Eigen3::Eigen
   PRIVATE mycommon
   )
 

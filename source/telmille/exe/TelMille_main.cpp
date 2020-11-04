@@ -26,6 +26,8 @@ example:
 ../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/jsondata/altel_Run069000.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_geo.json -maxE 100000 -hitResX 0.1 -hitResY 0.1
 ../bin/TelMille_main  -hitFile /work/data/TB2006/alpide_200629033515.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_313_geo.json -maxE 1000000 -hitResX 0.014 -hitResY 0.014
 
+../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/test/altel_Run069001.json  -output output.json -pede steerfile -mille mille.bin -input out2_91.json -maxE 100000 -hitResX 0.027 -hitResY 0.027
+
 )";
 
 int main(int argc, char *argv[]) {
@@ -52,8 +54,8 @@ int main(int argc, char *argv[]) {
   size_t maxTrackNumber = -1;
   size_t maxEventNumber = -1;
 
-  double hitResX =0.01;
-  double hitResY =0.01;
+  double hitResX =0.02;
+  double hitResY =0.02;
 
   int c;
   opterr = 1;
@@ -205,7 +207,7 @@ int main(int argc, char *argv[]) {
     telmille.fillTrackXYRz(js_track_filtered);
   }
   std::fprintf(stdout, "%i tracks are picked from %i events\n", nTracks, nEvents);
-  
+
   telmille.endMilleBinary();
   telmille.createPedeStreeringModeXYRz(pedeSteeringFile_path);
 

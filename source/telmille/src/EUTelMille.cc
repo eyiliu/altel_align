@@ -13,8 +13,8 @@
 
 #include <Eigen/Geometry>
 
-#include "streamlog/streamlog.h"
-#include "pstream.h"
+// #include "streamlog/streamlog.h"
+// #include "pstream.h"
 #include "Mille.h"
 #include "EUTelMille.h"
 #include "exampleUtil.h"
@@ -457,7 +457,6 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
 void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
 
-  streamlog_out ( MESSAGE4 ) << endl << "Generating the steering file for the pede program..." << endl;
 
   ofstream steerFile;
   steerFile.open(path.c_str());
@@ -468,24 +467,45 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
 
   steerFile << "Parameter" << endl;
 
-  int counter = 0;
-  // loop over all planes
+  /*
   for (unsigned int n = 0; n < m_nPlanes; n++) {
     for(auto &[id, detN]: m_indexDet ){
       if(detN == n){
-        // std::cout<< "id = "<< id<< " detN= "<< detN<<std::endl;
         steerFile << (id*10 + 1) << " " << m_xPosDet.at(id) << " 0.0" << endl;
         steerFile << (id*10 + 2) << " " << m_yPosDet.at(id) << " 0.0" << endl;
         steerFile << (id*10 + 3) << " " << m_gammaPosDet.at(id) << " 0.0" << endl;
         break;
       }
     }
-    counter++;
-  } // end loop over all planes
+  }
+  */
+
+  for (unsigned int n = 0; n < m_nPlanes; n++) {
+    for(auto &[id, detN]: m_indexDet ){
+      if(detN == n){
+        if(n == 0){
+          steerFile << (id*10 + 1) << " " << "0.0" << " -1.0" << endl;
+          steerFile << (id*10 + 2) << " " << "0.0" << " -1.0" << endl;
+          steerFile << (id*10 + 3) << " " << "0.0" << " -1.0" << endl;
+        }
+        else if(n == m_nPlanes-1){
+          steerFile << (id*10 + 1) << " " << "0.0" << " -1.0" << endl;
+          steerFile << (id*10 + 2) << " " << "0.0" << " -1.0" << endl;
+          steerFile << (id*10 + 3) << " " << "0.0" << " 0.0" << endl;
+        }
+        else{
+          steerFile << (id*10 + 1) << " " << "0.0" << " 0.0" << endl;
+          steerFile << (id*10 + 2) << " " << "0.0" << " 0.0" << endl;
+          steerFile << (id*10 + 3) << " " << "0.0" << " 0.0" << endl;
+        }
+        break;
+      }
+    }
+  }
 
   steerFile << endl;
   steerFile << endl;
-  steerFile << "method inversion 10 0.001" << endl;
+  steerFile << "method inversion 10 0.0001" << endl;
   steerFile << endl;
   steerFile << "histprint" << endl;
   steerFile << endl;
@@ -493,5 +513,4 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
 
   steerFile.close();
 
-  streamlog_out ( MESSAGE5 ) << "File " << path << " written." << endl;
 }
