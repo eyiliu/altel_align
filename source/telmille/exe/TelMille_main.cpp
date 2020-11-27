@@ -12,7 +12,6 @@ Usage:
   -help                    help message
   -verbose                 verbose flag
   -hitFile          [PATH]   name of data json file
-  -outputGeometry   [PATH]   alignment result file
   -pedeSteeringFile [PATH]   path to pede steering file (output)
   -milleBinaryFile  [PATH]   path to mille binary file (output)
   -inputGeometry    [PATH]   geometry input file
@@ -23,10 +22,10 @@ Usage:
 
 example:
 
-../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/jsondata/altel_Run069000.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_geo.json -maxE 100000 -hitResX 0.1 -hitResY 0.1
-../bin/TelMille_main  -hitFile /work/data/TB2006/alpide_200629033515.json  -output output.json -pede pede.txt -mille mille.bin -input ../init_313_geo.json -maxE 1000000 -hitResX 0.014 -hitResY 0.014
+../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/jsondata/altel_Run069000.json  -pede pede.txt -mille mille.bin -input ../init_geo.json -maxE 100000 -hitResX 0.1 -hitResY 0.1
+../bin/TelMille_main  -hitFile /work/data/TB2006/alpide_200629033515.json -pede pede.txt -mille mille.bin -input ../init_313_geo.json -maxE 1000000 -hitResX 0.014 -hitResY 0.014
 
-../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/test/altel_Run069001.json  -output output.json -pede steerfile -mille mille.bin -input out2_91.json -maxE 100000 -hitResX 0.027 -hitResY 0.027
+../bin/TelMille_main  -hitFile /work/data/TB2008_CALICE/test/altel_Run069001.json -pede steerfile -mille mille.bin -input out2_91.json -maxE 100000 -hitResX 0.027 -hitResY 0.027
 
 )";
 
@@ -37,7 +36,6 @@ int main(int argc, char *argv[]) {
                               {"verbose", no_argument, &do_verbose, 1},
                               {"hitFile", required_argument, NULL, 'f'},
                               {"inputGeomerty", required_argument, NULL, 'g'},
-                              {"outputGeometry", required_argument, NULL, 'o'},
                               {"pedeSteeringFile", required_argument, NULL, 'u'},
                               {"milleBinaryFile", required_argument, NULL, 'q'},
                               {"hitResX", required_argument, NULL, 'r'},
@@ -121,7 +119,6 @@ int main(int argc, char *argv[]) {
 
   std::fprintf(stdout, "\n");
   std::fprintf(stdout, "hitFile:            %s\n", hitFile_path.c_str());
-  std::fprintf(stdout, "outputGeometry:     %s\n", outputGeometry_path.c_str());
   std::fprintf(stdout, "inputGeomerty:      %s\n", inputGeomerty_path.c_str());
   std::fprintf(stdout, "milleBinaryFile:    %s\n", milleBinaryFile_path.c_str());
   std::fprintf(stdout, "pedeSteeringFile:   %s\n", pedeSteeringFile_path.c_str());
@@ -148,7 +145,6 @@ int main(int argc, char *argv[]) {
   size_t n_datapack_select_opt = 20000;
   JsonFileDeserializer jsf(hitFile_path);
   JsonAllocator jsa;
-
 
   size_t nTracks = 0;
   size_t nEvents = 0;

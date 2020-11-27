@@ -322,9 +322,6 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
     yPosHit[detN]=globalPos[1];
     zPosHit[detN]=globalPos[2];
 
-    // xPosHit[detN]=xPosDet+js_hit["x"].GetDouble();
-    // yPosHit[detN]=yPosDet+js_hit["y"].GetDouble();
-    // zPosHit[detN]=zPosDet;
     idHit[detN]=id;
   }
 
