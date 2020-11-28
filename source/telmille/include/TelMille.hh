@@ -1,4 +1,4 @@
-// from: Igor Rubinskiy, DESY <mailto:igorrubinsky@gmail.com>
+// from: Igor Rubinskiy
 #ifndef EUTELMULTILINEFIT_H
 #define EUTELMULTILINEFIT_H
 
@@ -48,13 +48,11 @@ public:
                        std::vector<double>& residXFit,
                        std::vector<double>& residYFit);
 
-
   static std::unique_ptr<gbl::GblDetectorLayer> CreateLayerSit(const std::string& aName, unsigned int layer,
                                                                double xPos, double yPos,
                                                                double zPos, double thickness,
                                                                double uAngle, double uRes,
                                                                double vAngle, double vRes);
-
 private:
 
   std::unique_ptr<Mille> m_mille;
@@ -74,10 +72,7 @@ private:
   std::map<size_t, double> m_gammaPosDet;
 
   std::map<size_t, std::unique_ptr<gbl::GblDetectorLayer>> m_dets;
-
 };
-
-
 
 
 #endif

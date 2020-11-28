@@ -1,6 +1,6 @@
 find_package (Eigen3 REQUIRED NO_MODULE)
 
-set(LIB_SRC src/EUTelMille.cc src/Mille.cc src/exampleUtil.cpp)
+set(LIB_SRC src/TelMille.cc src/Mille.cc src/exampleUtil.cpp)
 
 add_library(altel-telmille STATIC ${LIB_SRC})
 

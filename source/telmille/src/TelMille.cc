@@ -1,4 +1,4 @@
-// from: Igor Rubinskiy, DESY <mailto:igorrubinsky@gmail.com>
+// origin from: Igor Rubinskiy
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -13,41 +13,19 @@
 
 #include <Eigen/Geometry>
 
-// #include "streamlog/streamlog.h"
-// #include "pstream.h"
 #include "Mille.h"
-#include "EUTelMille.h"
+#include "TelMille.hh"
 #include "exampleUtil.h"
-
-
-// #include "Mathematics/ApprOrthogonalLine3.h"
 
 using namespace std;
 
 EUTelMille::EUTelMille(){
-
 
 }
 
 
 EUTelMille::~EUTelMille(){
 };
-
-
-// EUTelMille::gteFit(unsigned int nPlanesFitter,
-//                    double xPosHit[], double yPosHit[], double zPosHit[],
-//                    double xResHit[], double yResHit[], double chi2Fit[2],
-//                    double residXFit[], double residYFit[], double angleFit[2]){
-//   gte::ApprOrthogonalLine3<double> linefit;
-//   std::vector<gte::Vector3<double>> hits;
-//   for(size_t n = 0; n< nPlanesFitter; n++){
-//     hits.emplace_back(xPosHit[n], yPosHit[n], zPosHit[n]);
-//   }
-//   linefit.Fit(hits);
-//   linefit.
-    
-// }
-
 
 
 /// Create a silicon layer with 2D measurement.
@@ -453,8 +431,6 @@ void EUTelMille::fillTrackXYRz(const JsonValue& js) {
 
 
 void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
-
-
   ofstream steerFile;
   steerFile.open(path.c_str());
 
@@ -464,19 +440,7 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
 
   steerFile << "Parameter" << endl;
 
-  /*
-  for (unsigned int n = 0; n < m_nPlanes; n++) {
-    for(auto &[id, detN]: m_indexDet ){
-      if(detN == n){
-        steerFile << (id*10 + 1) << " " << m_xPosDet.at(id) << " 0.0" << endl;
-        steerFile << (id*10 + 2) << " " << m_yPosDet.at(id) << " 0.0" << endl;
-        steerFile << (id*10 + 3) << " " << m_gammaPosDet.at(id) << " 0.0" << endl;
-        break;
-      }
-    }
-  }
-  */
-
+  // first (minimium z) plane are all fixed; last plane is center fixed, but rotatable
   for (unsigned int n = 0; n < m_nPlanes; n++) {
     for(auto &[id, detN]: m_indexDet ){
       if(detN == n){
@@ -507,7 +471,5 @@ void EUTelMille::createPedeStreeringModeXYRz(const std::string& path){
   steerFile << "histprint" << endl;
   steerFile << endl;
   steerFile << "end" << endl;
-
   steerFile.close();
-
 }
